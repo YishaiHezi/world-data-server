@@ -16,13 +16,13 @@ public class CountryDataProvider {
     public static void main(String[] args) {
 
         try {
-            Set<String> countriesIds = getCountriesCodes();
-            Map<String, Integer> countriesPopulation = providePopulations(countriesIds);
-            Map<String, Integer> countriesSize = provideSizes(countriesIds);
+            CountriesVerifier countriesVerifier = new CountriesVerifier();
+            Map<String, Integer> countriesPopulation = providePopulations(countriesVerifier);
+            Map<String, Integer> countriesSize = provideSizes(countriesVerifier);
 
             for (Map.Entry<String, Integer> entry : countriesPopulation.entrySet()) {
                 String countryName = entry.getKey();
-                System.out.println("Country: " + countryName + ", Population: " + entry.getValue() + ", Size: " + countriesSize.get(countryName));
+                System.out.println("Country: " + countryName + ". Population: " + entry.getValue() + ", Size: " + countriesSize.get(countryName));
             }
 
         } catch (IOException e) {
@@ -34,22 +34,22 @@ public class CountryDataProvider {
     /**
      * Provide all the populations of the countries in the world.
      */
-    private static Map<String, Integer> providePopulations(Set<String> countriesIds) throws IOException{
+    private static Map<String, Integer> providePopulations(CountriesVerifier countriesVerifier) throws IOException{
         String populationUrl = "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&date=2023&per_page=300";
         String populationResponse = fetchData(populationUrl);
 
-        return parsePopulationsData(populationResponse, countriesIds);
+        return parsePopulationsData(populationResponse, countriesVerifier);
     }
 
 
     /**
      * Provide all the sizes of the countries in the world.
      */
-    private static Map<String, Integer> provideSizes(Set<String> countriesIds) throws IOException{
+    private static Map<String, Integer> provideSizes(CountriesVerifier countriesVerifier) throws IOException{
         String sizeUrl = "https://api.worldbank.org/v2/country/all/indicator/AG.SRF.TOTL.K2?format=json&date=2021&per_page=300";
         String sizeResponse = fetchData(sizeUrl);
 
-        return parseSizesData(sizeResponse, countriesIds);
+        return parseSizesData(sizeResponse, countriesVerifier);
     }
 
 
@@ -70,19 +70,9 @@ public class CountryDataProvider {
 
 
     /**
-     * Returns a list of all the countries codes / ids in the world.
-     */
-    private static Set<String> getCountriesCodes(){
-        String codes = "AF	AL	DZ	AS	AD	AO	AI	AQ	AG	AR	AM	AW	AU	AT	AZ  BS	BH	BD	BB	BY	BE	BZ	BJ	BM	BT	BO	BQ	BA	BW	BV	BR	IO	BN	BG	BF	BI	CV	KH	CM	CA	KY	CF	TD	CL	CN	CX	CC	CO	KM	CD	CG	CK	CR	HR	CU	CW	CY	CZ	CI	DK	DJ	DM	DO	EC	EG	SV	GQ	ER	EE	SZ	ET	FK	FO	FJ	FI	FR	GF	PF	TF	GA	GM	GE	DE	GH	GI	GR	GL	GD	GP	GU	GT	GG	GN	GW	GY	HT	HM	VA	HN	HK	HU	IS	IN	ID	IR	IQ	IE	IM	IL	IT	JM	JP	JE	JO	KZ	KE	KI	KP	KR	KW	KG	LA	LV	LB	LS	LR	LY	LI	LT	LU	MO	MG	MW	MY	MV	ML	MT	MH	MQ	MR	MU	YT	MX	FM	MD	MC	MN	ME	MS	MA	MZ	MM	NA	NR	NP	NL	NC	NZ	NI	NE	NG	NU	NF	MP	NO	OM	PK	PW	PS	PA	PG	PY	PE	PH	PN	PL	PT	PR	QA	MK	RO	RU	RW	RE	BL	SH	KN	LC	MF	PM	VC	WS	SM	ST	SA	SN	RS	SC	SL	SG	SX	SK	SI	SB	SO	ZA	GS	SS	ES	LK	SD	SR	SJ	SE	CH	SY	TW	TJ	TZ	TH	TL	TG	TK	TO	TT	TN	TR	TM	TC	TV	UG	UA	AE	GB	UM	US	UY	UZ	VU	VE	VN	VG	VI	WF	EH	YE	ZM	ZW	AX";
-
-        return new HashSet<>(Arrays.asList(codes.split("\t")));
-    }
-
-
-    /**
      * Parse the population data for all the countries.
      */
-    private static Map<String, Integer> parsePopulationsData(String populationResponse, Set<String> countriesIds){
+    private static Map<String, Integer> parsePopulationsData(String populationResponse, CountriesVerifier countriesVerifier){
         JSONArray populationArray = new JSONArray(populationResponse);
         JSONArray populationDataArray = populationArray.getJSONArray(1);
 
@@ -96,7 +86,7 @@ public class CountryDataProvider {
 
             String IdValue = country.getString("id");
 
-            if (countriesIds.contains(IdValue))
+            if (countriesVerifier.isValidCountry(IdValue))
                 countriesPopulation.put(countryName, populationValue);
         }
 
@@ -107,7 +97,7 @@ public class CountryDataProvider {
     /**
      * Parse the sizes data for all the countries.
      */
-    private static Map<String, Integer> parseSizesData(String sizeResponse, Set<String> countriesIds){
+    private static Map<String, Integer> parseSizesData(String sizeResponse, CountriesVerifier countriesVerifier){
         JSONArray sizeArray = new JSONArray(sizeResponse);
         JSONArray sizeDataArray = sizeArray.getJSONArray(1);
 
@@ -121,7 +111,7 @@ public class CountryDataProvider {
 
             String IdValue = country.getString("id");
 
-            if (countriesIds.contains(IdValue))
+            if (countriesVerifier.isValidCountry(IdValue))
                 countriesSize.put(countryName, sizeValue);
         }
 
