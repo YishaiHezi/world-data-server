@@ -1,6 +1,3 @@
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -23,10 +20,13 @@ public class WorldBankProvider extends Provider{
             Map<String, Integer> countriesPopulation = providePopulations();
             Map<String, Integer> countriesSize = provideSizes();
             Map<String, String> countriesCapitals = provideCapitals();
+            Map<String, Double> countriesGDPs = provideGDP();
+            Map<String, Double> countriesGDPsPerCapita = provideGDPPerCapita();
 
             for (Map.Entry<String, Integer> entry : countriesPopulation.entrySet()) {
-//                String countryName = entry.getKey();
-//                System.out.println("Country: " + countryName + ". Population: " + entry.getValue() + ", Size: " + countriesSize.get(countryName));
+                String countryName = entry.getKey();
+                System.out.println("Country: " + countryName + ". Population: "
+                        + entry.getValue() + ", Size: " + countriesSize.get(countryName));
             }
 
             System.out.println("I'm WorldBankProvider and I have country size, population, capitals...");
@@ -63,6 +63,27 @@ public class WorldBankProvider extends Provider{
     /**
      * Provide all the sizes of the countries in the world.
      */
+    private Map<String, Double> provideGDP() throws IOException{
+        String url = "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&date=2023&per_page=300";
+        String response = fetchData(url);
+
+        return parseGDPs(response);
+    }
+
+    /**
+     * Provide all the sizes of the countries in the world.
+     */
+    private Map<String, Double> provideGDPPerCapita() throws IOException{
+        String url = "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD?format=json&date=2023&per_page=300";
+        String response = fetchData(url);
+
+        return parseGDPs(response);
+    }
+
+
+    /**
+     * Provide all the sizes of the countries in the world.
+     */
     private Map<String, String> provideCapitals() throws IOException{
         String url = "https://api.worldbank.org/v2/country?format=json&per_page=300";
         String response = fetchData(url);
@@ -84,12 +105,15 @@ public class WorldBankProvider extends Provider{
             JSONObject populationData = populationDataArray.getJSONObject(i);
             JSONObject country = populationData.getJSONObject("country");
             String countryName = country.getString("value");
-            int populationValue = populationData.optInt("value"); // May be null for missing values
 
             String IdValue = country.getString("id");
 
-            if (CountriesVerifier.isValidCountry(IdValue))
-                countriesPopulation.put(countryName, populationValue);
+            if (CountriesVerifier.isValidCountry(IdValue)){
+                int populationValue = populationData.optInt("value", -1); // May be null for missing values
+
+                if (populationValue > 0)
+                    countriesPopulation.put(countryName, populationValue);
+            }
         }
 
         return countriesPopulation;
@@ -109,12 +133,15 @@ public class WorldBankProvider extends Provider{
             JSONObject sizeData = sizeDataArray.getJSONObject(j);
             JSONObject country = sizeData.getJSONObject("country");
             String countryName = country.getString("value");
-            int sizeValue = sizeData.optInt("value", -1); // Use -1 if size is null
 
             String IdValue = country.getString("id");
 
-            if (CountriesVerifier.isValidCountry(IdValue))
-                countriesSize.put(countryName, sizeValue);
+            if (CountriesVerifier.isValidCountry(IdValue)){
+                int sizeValue = sizeData.optInt("value", -1); // Use -1 if size is null
+
+                if (sizeValue > 0)
+                    countriesSize.put(countryName, sizeValue);
+            }
         }
 
         return countriesSize;
@@ -133,15 +160,39 @@ public class WorldBankProvider extends Provider{
         for (int j = 0; j < countries.length(); j++) {
             JSONObject country = countries.getJSONObject(j);
             String code = country.get("iso2Code").toString();
-            String capitalCity = country.get("capitalCity").toString();
 
-            if (CountriesVerifier.isValidCountry(code))
+            if (CountriesVerifier.isValidCountry(code)){
+                String capitalCity = country.get("capitalCity").toString();
                 countriesCapitals.put(code, capitalCity);
+            }
         }
 
         return countriesCapitals;
+    }
 
 
+    /**
+     * Parse the GDPs of all the countries.
+     */
+    private Map<String, Double> parseGDPs(String response){
+        JSONArray responseArray = new JSONArray(response);
+        JSONArray countries = responseArray.getJSONArray(1);
+
+        Map<String, Double> countriesGDPs = new HashMap<>();
+
+        for (int j = 0; j < countries.length(); j++) {
+            JSONObject country = countries.getJSONObject(j);
+            String code = country.getJSONObject("country").getString("id");
+
+            if (CountriesVerifier.isValidCountry(code)){
+                double gdpValue = country.optDouble("value", -1);
+
+                if (gdpValue > 0)
+                    countriesGDPs.put(code, gdpValue);
+            }
+        }
+
+        return countriesGDPs;
     }
 
 }
