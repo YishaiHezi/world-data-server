@@ -10,9 +10,9 @@ import java.util.Map;
 
 
 /**
- * Can provide data from world bank regarding all the countries in the world.
+ * Provides data related to countries from World Bank API.
  */
-public class WorldBankProvider {
+public class WorldBankProvider extends Provider{
 
 
     /**
@@ -22,11 +22,14 @@ public class WorldBankProvider {
         try {
             Map<String, Integer> countriesPopulation = providePopulations();
             Map<String, Integer> countriesSize = provideSizes();
+            Map<String, String> countriesCapitals = provideCapitals();
 
             for (Map.Entry<String, Integer> entry : countriesPopulation.entrySet()) {
-                String countryName = entry.getKey();
-                System.out.println("Country: " + countryName + ". Population: " + entry.getValue() + ", Size: " + countriesSize.get(countryName));
+//                String countryName = entry.getKey();
+//                System.out.println("Country: " + countryName + ". Population: " + entry.getValue() + ", Size: " + countriesSize.get(countryName));
             }
+
+            System.out.println("I'm WorldBankProvider and I have country size, population, capitals...");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -58,18 +61,13 @@ public class WorldBankProvider {
 
 
     /**
-     * Gets the data from the given url.
+     * Provide all the sizes of the countries in the world.
      */
-    private String fetchData(String url) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder().url(url).build();
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-            if (response.body() != null)
-                return response.body().string();
-            else
-                throw new IOException("response.body() is null!");
-        }
+    private Map<String, String> provideCapitals() throws IOException{
+        String url = "https://api.worldbank.org/v2/country?format=json&per_page=300";
+        String response = fetchData(url);
+
+        return parseCapitals(response);
     }
 
 
@@ -122,5 +120,28 @@ public class WorldBankProvider {
         return countriesSize;
     }
 
+
+    /**
+     * Parse the capital cities of all the countries.
+     */
+    private Map<String, String> parseCapitals(String capitalResponse){
+        JSONArray responseArray = new JSONArray(capitalResponse);
+        JSONArray countries = responseArray.getJSONArray(1);
+
+        Map<String, String> countriesCapitals = new HashMap<>();
+
+        for (int j = 0; j < countries.length(); j++) {
+            JSONObject country = countries.getJSONObject(j);
+            String code = country.get("iso2Code").toString();
+            String capitalCity = country.get("capitalCity").toString();
+
+            if (CountriesVerifier.isValidCountry(code))
+                countriesCapitals.put(code, capitalCity);
+        }
+
+        return countriesCapitals;
+
+
+    }
 
 }
