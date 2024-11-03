@@ -17,17 +17,16 @@ public class WorldBankProvider extends Provider{
      */
     public void provide(){
         try {
+
+            Map<String, String> countriesCodes = provideCountryCodes();
             Map<String, Integer> countriesPopulation = providePopulations();
             Map<String, Integer> countriesSize = provideSizes();
             Map<String, String> countriesCapitals = provideCapitals();
             Map<String, Double> countriesGDPs = provideGDP();
             Map<String, Double> countriesGDPsPerCapita = provideGDPPerCapita();
 
-            for (Map.Entry<String, Integer> entry : countriesPopulation.entrySet()) {
-                String countryName = entry.getKey();
-                System.out.println("Country: " + countryName + ". Population: "
-                        + entry.getValue() + ", Size: " + countriesSize.get(countryName));
-            }
+            JsonWriter jsonWriter = new JsonWriter();
+            jsonWriter.writeToJsonFile(countriesCodes, countriesPopulation, countriesSize, countriesCapitals, countriesGDPs, countriesGDPsPerCapita);
 
             System.out.println("I'm WorldBankProvider and I have country size, population, capitals...");
 
@@ -36,6 +35,17 @@ public class WorldBankProvider extends Provider{
         }
     }
 
+
+
+    /**
+     * Provide all the country codes of all the countries in the world.
+     */
+    private Map<String, String> provideCountryCodes() throws IOException {
+        String url = "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&date=2023&per_page=300";
+        String response = fetchData(url);
+
+        return parseCountryCodes(response);
+    }
 
 
     /**
@@ -95,6 +105,32 @@ public class WorldBankProvider extends Provider{
     /**
      * Parse the population data for all the countries.
      */
+    private Map<String, String> parseCountryCodes(String response){
+        JSONArray responseArray = new JSONArray(response);
+        JSONArray responseDataArray = responseArray.getJSONArray(1);
+
+        Map<String, String> countriesCodes = new HashMap<>();
+
+        for (int i = 0; i < responseDataArray.length(); i++) {
+            JSONObject countryData = responseDataArray.getJSONObject(i);
+            JSONObject country = countryData.getJSONObject("country");
+            String countryName = country.getString("value");
+
+            String IdValue = country.getString("id");
+
+            if (CountriesVerifier.isValidCountry(IdValue)){
+                countriesCodes.put(IdValue, countryName);
+            }
+        }
+
+        return countriesCodes;
+    }
+
+
+
+    /**
+     * Parse the population data for all the countries.
+     */
     private Map<String, Integer> parsePopulationsData(String populationResponse){
         JSONArray populationArray = new JSONArray(populationResponse);
         JSONArray populationDataArray = populationArray.getJSONArray(1);
@@ -104,7 +140,6 @@ public class WorldBankProvider extends Provider{
         for (int i = 0; i < populationDataArray.length(); i++) {
             JSONObject populationData = populationDataArray.getJSONObject(i);
             JSONObject country = populationData.getJSONObject("country");
-            String countryName = country.getString("value");
 
             String IdValue = country.getString("id");
 
@@ -112,7 +147,7 @@ public class WorldBankProvider extends Provider{
                 int populationValue = populationData.optInt("value", -1); // May be null for missing values
 
                 if (populationValue > 0)
-                    countriesPopulation.put(countryName, populationValue);
+                    countriesPopulation.put(IdValue, populationValue);
             }
         }
 
@@ -132,7 +167,6 @@ public class WorldBankProvider extends Provider{
         for (int j = 0; j < sizeDataArray.length(); j++) {
             JSONObject sizeData = sizeDataArray.getJSONObject(j);
             JSONObject country = sizeData.getJSONObject("country");
-            String countryName = country.getString("value");
 
             String IdValue = country.getString("id");
 
@@ -140,7 +174,7 @@ public class WorldBankProvider extends Provider{
                 int sizeValue = sizeData.optInt("value", -1); // Use -1 if size is null
 
                 if (sizeValue > 0)
-                    countriesSize.put(countryName, sizeValue);
+                    countriesSize.put(IdValue, sizeValue);
             }
         }
 
